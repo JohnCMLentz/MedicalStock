@@ -14,7 +14,16 @@ namespace MedicalStock.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite("Data Source=MedicalStock.db");
+            var projectDirectory =
+                Directory.GetParent(AppContext.BaseDirectory)!
+                .Parent!
+                .Parent!
+                .Parent!
+                .FullName;
+
+            var dbPath = Path.Combine(projectDirectory, "MedicalStock.db");
+
+            optionsBuilder.UseSqlite($"Data Source={dbPath}");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -25,6 +34,9 @@ namespace MedicalStock.Data
                 entity.Property(c => c.Name)
                 .IsRequired()
                 .HasMaxLength(100);
+
+                entity.HasIndex(c => c.Name)
+                .IsUnique();
             });
 
             // Product

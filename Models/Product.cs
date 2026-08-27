@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace MedicalStock.Models
@@ -14,6 +15,25 @@ namespace MedicalStock.Models
         public int CategoryId { get; set; }
         public Category Category { get; set; }
         public ICollection<Batch> Batches { get; } = new List<Batch>();
+
+        public Product()
+        {
+
+        }
+
+        public Product(string name, string barcode, string manufacturer, decimal price, int categoryId)
+        {
+            Name = name;
+            Barcode = barcode;
+            Manufacturer = manufacturer;
+            Price = price;
+            CategoryId = categoryId;
+        }
+
+        public override string ToString()
+        {
+            return $"ID: {Id}, Name: {Name}, Barcode: {Barcode}, Manufacturer: {Manufacturer}, Price: {Price.ToString("F2",CultureInfo.InvariantCulture)}, CategoryId: {CategoryId};";
+        }
 
     }
 }
