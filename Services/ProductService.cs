@@ -52,7 +52,7 @@ namespace MedicalStock.Services
 
         public bool UpdateProduct(int id, string? name, string? barcode, string? manufacturer, decimal? price, int? categoryId)
         {
-            var product = _context.Products.FirstOrDefault(p => p.Id == id);
+            var product = ProductById(id);
 
             if (product == null) return false;
 
