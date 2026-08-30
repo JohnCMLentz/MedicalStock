@@ -12,7 +12,7 @@ namespace MedicalStock
             var categoryService = new CategoryService(context);
             var productService = new ProductService(context);
             var batchService = new BatchService(context);
-            var invetoryService = new InventoryService(context);
+            var inventoryService = new InventoryService(context);
 
             /*
             productService.CreateProduct
@@ -32,27 +32,25 @@ namespace MedicalStock
                 1
                 );
             
-            if (batchService.CreateBatch
-                (
+            if (inventoryService.AddStock(
                 1,
-                100,
-                DateTime.Parse("2027-12-10"),
-                null
-                ))
-            {
-                Console.WriteLine("Batch criado!");
-            }
+                110,
+                DateTime.Parse("2027-08-05"),
+                DateTime.Parse("2026-08-30")))
+                Console.WriteLine("Stock adicionado");
             else
-                Console.WriteLine("Erro ao criar!");
+                Console.WriteLine("Erro ao adicionar!");
+            if (inventoryService.RemoveStock(
+                1,
+                120))
+                Console.WriteLine("Stock removido");
+            else
+                Console.WriteLine("Erro ao remover!");
             */
 
-
-
-
-
-
-
-
+            
+            Console.WriteLine(inventoryService.GetProductAllStockInfo(1));
+            Console.WriteLine();
             /*
             Console.WriteLine();
             foreach (var i in productService.GetProducts())
@@ -60,17 +58,9 @@ namespace MedicalStock
                 Console.WriteLine(i.ToString());
             }
             
+            Console.WriteLine(inventoryService.GetProductAllStockInfo(1));
             Console.WriteLine();
-            foreach (var i in batchService.GetBatches())
-            {
-                Console.WriteLine(i);
-            }
 
-            foreach (var i in batchService.GetBatchesByFEFO(1))
-            {
-                Console.WriteLine(i);
-            }
-            Console.WriteLine();
             */
         }
     }

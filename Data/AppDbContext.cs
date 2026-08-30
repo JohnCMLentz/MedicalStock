@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using MedicalStock.Models;
 
 namespace MedicalStock.Data
@@ -11,6 +8,7 @@ namespace MedicalStock.Data
         public DbSet<Product> Products {  get; set; }
         public DbSet<Batch> Batches { get; set; }
         public DbSet<Category> Categories { get; set; }
+        public DbSet<StockMovement> StockMovements { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -82,6 +80,25 @@ namespace MedicalStock.Data
                     .WithMany(p => p.Batches)
                     .HasForeignKey(b => b.ProductId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // StockMovement
+            modelBuilder.Entity<StockMovement>(entity =>
+            {
+                entity.Property(s => s.Quantity)
+                .IsRequired();
+
+                entity.Property(s => s.Type)
+                .IsRequired();
+
+                entity.Property(s => s.MovementDate)
+                .IsRequired();
+
+                entity.HasOne(s => s.Batch)
+                    .WithMany(p => p.StockMovements)
+                    .HasForeignKey(s => s.BatchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
             });
         }
     }

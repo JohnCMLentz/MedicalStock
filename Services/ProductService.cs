@@ -15,7 +15,7 @@ namespace MedicalStock.Services
 
         public bool CreateProduct(string name, string barcode, string manufacturer, decimal price, int categoryId)
         {
-            if (ProductByBarcode(barcode) != null)
+            if (GetProductByBarcode(barcode) != null)
                 return false;
             if (!_context.Categories.Any(c => c.Id == categoryId))
                 return false;
@@ -40,19 +40,19 @@ namespace MedicalStock.Services
             return _context.Products.ToList();
         }
 
-        public Product? ProductByBarcode(string barcode)
+        public Product? GetProductByBarcode(string barcode)
         {
             return _context.Products.FirstOrDefault(p => p.Barcode == barcode);
         }
 
-        public Product? ProductById(int id)
+        public Product? GetProductById(int productId)
         {
-            return _context.Products.FirstOrDefault(p => p.Id == id);
+            return _context.Products.FirstOrDefault(p => p.Id == productId);
         }
 
         public bool UpdateProduct(int id, string? name, string? barcode, string? manufacturer, decimal? price, int? categoryId)
         {
-            var product = ProductById(id);
+            var product = GetProductById(id);
 
             if (product == null) return false;
 
@@ -64,7 +64,7 @@ namespace MedicalStock.Services
                 product.CategoryId = categoryId.Value;
             }
 
-            var existingProduct = ProductByBarcode(barcode);
+            var existingProduct = GetProductByBarcode(barcode);
 
             if (existingProduct != null && existingProduct.Id != id)
                 return false;

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace MedicalStock.Models
+﻿namespace MedicalStock.Models
 {
     public class Category
     {
@@ -10,5 +6,11 @@ namespace MedicalStock.Models
         public string Name { get; set; }
         public ICollection<Product> Products { get; } = new List<Product>();
 
+        public Category() { }
+
+        public Category(string name)
+        {
+            Name = name;
+        }
     }
 }

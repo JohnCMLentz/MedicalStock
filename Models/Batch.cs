@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace MedicalStock.Models
+﻿namespace MedicalStock.Models
 {
     public class Batch
     {
         public int Id { get; private set; }
         public int ProductId { get; set; }
-        public Product Product { get; set; }
+        public Product? Product { get; set; }
         public int Quantity { get; set; }
         public DateTime ExpirationDate { get; set; }
         public DateTime ReceivedAt { get; set; }
+        public ICollection<StockMovement>? StockMovements { get; } = new List<StockMovement>();
 
         public Batch() { }
 
@@ -28,7 +25,8 @@ namespace MedicalStock.Models
 
         public override string ToString()
         {
-            return $"Batch ID: {Id}, Product ID: {ProductId}, Quantity: {Quantity}, Expiration Date: {ExpirationDate.ToString("yyyy/MM/dd")}, Received At: {ReceivedAt.ToString("yyyy/MM/dd")}";
+            return $"Batch ID: {Id}, Product ID: {ProductId}, Quantity: {Quantity}, " +
+                $"Expiration Date: {ExpirationDate.ToString("yyyy/MM/dd")}, Received At: {ReceivedAt.ToString("yyyy/MM/dd")}";
         }
     }
 }

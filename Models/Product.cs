@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Text;
+﻿using System.Globalization;
 
 namespace MedicalStock.Models
 {
@@ -13,13 +10,8 @@ namespace MedicalStock.Models
         public string Manufacturer { get; set; }
         public decimal Price { get; set; }
         public int CategoryId { get; set; }
-        public Category Category { get; set; }
-        public ICollection<Batch> Batches { get; } = new List<Batch>();
-
-        public Product()
-        {
-
-        }
+        public Category? Category { get; set; }
+        public ICollection<Batch>? Batches { get; } = new List<Batch>();
 
         public Product(string name, string barcode, string manufacturer, decimal price, int categoryId)
         {
@@ -32,7 +24,8 @@ namespace MedicalStock.Models
 
         public override string ToString()
         {
-            return $"ID: {Id}, Name: {Name}, Barcode: {Barcode}, Manufacturer: {Manufacturer}, Price: {Price.ToString("F2",CultureInfo.InvariantCulture)}, CategoryId: {CategoryId};";
+            return $"ID: {Id}, Name: {Name}, Barcode: {Barcode}, Manufacturer: {Manufacturer}, " +
+                $"Price: {Price.ToString("F2",CultureInfo.InvariantCulture)}, CategoryId: {CategoryId};";
         }
 
     }

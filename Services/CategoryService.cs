@@ -14,10 +14,7 @@ namespace MedicalStock.Services
 
         public void CreateCategory(string name)
         {
-            var category = new Category
-            {
-                Name = name
-            };
+            var category = new Category(name);
 
             _context.Categories.Add(category);
             _context.SaveChanges();

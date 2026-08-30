@@ -12,16 +12,16 @@ namespace MedicalStock.Services
             _context = context;
         }
 
-        public bool CreateBatch(int productId, int quantity, DateTime expirationDate, DateTime? receivedAt)
+        public Batch? CreateBatch(int productId, int quantity, DateTime expirationDate, DateTime receivedAt)
         {
             if (quantity <= 0)
-                return false;
-            if (receivedAt == null)
-                receivedAt = DateTime.Now;
+                return null;
             if (expirationDate <= receivedAt)
-                return false;
+                return null;
+            if (receivedAt.Date > DateTime.Today)
+                return null;
             if (!_context.Products.Any(p => p.Id == productId))
-                return false;
+                return null;
 
             var batch = new Batch
                 (
@@ -32,9 +32,8 @@ namespace MedicalStock.Services
                 );
 
             _context.Batches.Add(batch);
-            _context.SaveChanges();
 
-            return true;
+            return batch;
         }
 
         public List<Batch> GetBatches()
@@ -50,8 +49,7 @@ namespace MedicalStock.Services
         public List<Batch> GetBatchesByFEFO(int productId)
         {
             return _context.Batches
-                .Where(b => b.ProductId == productId)
-                .Where(b => b.Quantity > 0)
+                .Where(b => b.ProductId == productId && b.Quantity > 0)
                 .OrderBy(b => b.ExpirationDate)
                 .ToList();
         }
