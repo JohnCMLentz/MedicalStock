@@ -40,6 +40,7 @@ namespace MedicalStock
                 Console.WriteLine("Stock adicionado");
             else
                 Console.WriteLine("Erro ao adicionar!");
+
             if (inventoryService.RemoveStock(
                 1,
                 120))
@@ -48,9 +49,17 @@ namespace MedicalStock
                 Console.WriteLine("Erro ao remover!");
             */
 
-            
-            Console.WriteLine(inventoryService.GetProductAllStockInfo(1));
-            Console.WriteLine();
+            if (inventoryService.AddStock(
+                1,
+                110,
+                DateTime.Parse("2026-09-25"),
+                null))
+                Console.WriteLine("Stock adicionado");
+            else
+                Console.WriteLine("Erro ao adicionar!");
+
+            Console.WriteLine(inventoryService.GetExpiretionBatchesInfo());
+
             /*
             Console.WriteLine();
             foreach (var i in productService.GetProducts())

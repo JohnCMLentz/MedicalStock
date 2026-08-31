@@ -12,6 +12,7 @@ namespace MedicalStock.Models
         public int CategoryId { get; set; }
         public Category? Category { get; set; }
         public ICollection<Batch>? Batches { get; } = new List<Batch>();
+        public int MinimumStock { get; set; }
 
         public Product(string name, string barcode, string manufacturer, decimal price, int categoryId)
         {
