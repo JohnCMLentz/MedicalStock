@@ -1,3 +1,4 @@
 <Solution>
-  <Project Path="MedicalStock.csproj" />
+  <Project Path="MedicalStock.Tests/MedicalStock.Tests.csproj" Id="926b8981-dbab-45d0-a34e-f9b719b90659" />
+  <Project Path="MedicalStock\MedicalStock.csproj" />
 </Solution>
