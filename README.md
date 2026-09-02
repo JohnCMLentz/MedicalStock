@@ -10,9 +10,9 @@ This project was created as a learning and portfolio project, with a focus on ob
 
 **In Development**
 
-The project is currently in the initial development stage. The database structure and entity relationships have been defined, and the SQLite database has been successfully created using Entity Framework Core migrations.
+The project is currently under active development. The core database structure, entity relationships, CRUD services, stock movements, FEFO stock rotation, expiration rules, minimum-stock monitoring, disposal operations, and domain exception handling have been implemented.
 
-New features and improvements will be added progressively.
+The next development stage will focus on automated testing with xUnit, followed by further application and interface improvements.
 
 ---
 
@@ -27,6 +27,8 @@ The main goals of this project are:
 - Understand database relationships and foreign keys
 - Implement inventory management rules
 - Implement FEFO (First Expired, First Out)
+- Track stock movement history
+- Apply domain-specific exception handling
 - Practice migrations and database versioning
 - Develop a structured and maintainable application
 - Build a portfolio project following common software development practices
@@ -49,6 +51,7 @@ The main goals of this project are:
 
 The project currently follows a simple separation of responsibilities:
 
+```text
 MedicalStock
 |
 |-- Data
@@ -57,14 +60,26 @@ MedicalStock
 |-- Models
 |   |-- Product.cs
 |   |-- Batch.cs
-|   `-- Category.cs
+|   |-- Category.cs
+|   |-- StockMovement.cs
+|   `-- Enums
+|       `-- MovementType.cs
+|
+|-- Services
+|   |-- ProductService.cs
+|   |-- CategoryService.cs
+|   |-- BatchService.cs
+|   `-- InventoryService.cs
+|
+|-- Exceptions
+|   `-- Domain exceptions
 |
 |-- Migrations
-|   `-- InitialCreate
 |
 |-- MedicalStock.db
 |
 `-- Program.cs
+```
 
 The structure may evolve as new features are implemented.
 
@@ -72,27 +87,32 @@ The structure may evolve as new features are implemented.
 
 ## Domain Model
 
-The current database model consists of three main entities.
+The current database model consists of four main entities.
 
 ### Category
 
 Represents a category used to organize products.
 
+```text
 Category
 |-- Id
 `-- Name
+```
 
 ### Product
 
 Represents a product stored in the medical/pharmaceutical inventory.
 
+```text
 Product
 |-- Id
 |-- Name
 |-- Barcode
 |-- Manufacturer
 |-- Price
+|-- MinimumStock
 `-- CategoryId
+```
 
 A product belongs to one category and can have multiple batches.
 
@@ -100,14 +120,31 @@ A product belongs to one category and can have multiple batches.
 
 Represents a specific batch of a product.
 
+```text
 Batch
 |-- Id
 |-- ProductId
 |-- Quantity
 |-- ExpirationDate
 `-- ReceivedAt
+```
 
 A product can have multiple batches, allowing different quantities and expiration dates to be tracked independently.
+
+### StockMovement
+
+Represents an inventory movement associated with a specific batch.
+
+```text
+StockMovement
+|-- Id
+|-- BatchId
+|-- Quantity
+|-- Type
+`-- MovementDate
+```
+
+Stock movements preserve inventory history for entries, outflows, and disposals.
 
 ---
 
@@ -115,6 +152,7 @@ A product can have multiple batches, allowing different quantities and expiratio
 
 The current relationships are:
 
+```text
 Category
    |
    | 1:N
@@ -124,6 +162,11 @@ Product
    | 1:N
    v
 Batch
+   |
+   | 1:N
+   v
+StockMovement
+```
 
 ### Category -> Product
 
@@ -135,13 +178,17 @@ One product can contain multiple batches.
 
 This relationship is essential for the inventory management system because different batches of the same product can have different expiration dates and quantities.
 
+### Batch -> StockMovement
+
+One batch can contain multiple stock movements. Each movement identifies the affected batch, quantity, movement type, and movement date.
+
 ---
 
 ## FEFO Inventory Management
 
-The inventory system will use FEFO (First Expired, First Out) as its stock rotation strategy.
+The inventory system uses FEFO (First Expired, First Out) as its stock rotation strategy.
 
-When a product is removed from inventory, the system will prioritize the batch with the earliest expiration date.
+When a product is removed from inventory, the system prioritizes valid batches with the earliest expiration date. Expired batches are excluded from regular stock outflows.
 
 For example:
 
@@ -171,6 +218,45 @@ Batch B -> 90
 Batch C -> 80
 
 This approach is particularly appropriate for perishable and pharmaceutical products.
+
+---
+
+## Inventory Business Rules
+
+The system currently implements the following business rules:
+
+- Stock entries create new batches instead of modifying existing batches.
+- Every stock entry generates an `Entry` stock movement.
+- Available stock only includes batches with a positive quantity that have not expired.
+- Products remain valid throughout their expiration date.
+- Regular stock outflows cannot use expired batches.
+- Stock outflows follow FEFO.
+- Outflows affecting multiple batches generate one movement for each affected batch.
+- Expired stock remains stored until explicitly discarded.
+- Disposal operations generate `Disposal` stock movements.
+- Products can define a minimum stock level.
+- Stock equal to or below the configured minimum is considered low stock.
+- A minimum stock value of zero disables the low-stock alert.
+- Product prices must be greater than zero.
+- Entities with historical relationships are protected from deletion.
+- Invalid business operations are represented by domain-specific exceptions.
+
+### Expiration and Disposal
+
+A batch remains valid throughout its expiration date and becomes expired on the following day. Expired stock is excluded from available stock and cannot be used in regular outflows, but it remains stored until an explicit disposal operation is performed.
+
+### Minimum Stock
+
+- `MinimumStock <= 0`: low-stock alert disabled
+- `AvailableStock > MinimumStock`: normal stock
+- `AvailableStock <= MinimumStock`: low stock
+- `AvailableStock == 0`: out of stock
+
+Only non-expired stock is considered available.
+
+### Domain Exceptions
+
+Services use domain-specific exceptions instead of relying only on `false` or `null` results. These exceptions cover invalid data, duplicate barcodes, invalid quantities or dates, missing entities, insufficient stock, missing expired stock for disposal, and protected deletion operations.
 
 ---
 
@@ -213,6 +299,7 @@ The current context contains:
 - DbSet<Product>
 - DbSet<Batch>
 - DbSet<Category>
+- DbSet<StockMovement>
 
 Entity relationships are explicitly configured using EF Core Fluent API.
 
@@ -236,51 +323,55 @@ The project also includes database constraints such as:
 
 ### Product Management
 
-- [ ] Create products
-- [ ] List products
-- [ ] Search products
-- [ ] Update products
-- [ ] Delete products
-- [ ] Barcode validation
+- [x] Create products
+- [x] List products
+- [x] Search products
+- [x] Update products
+- [x] Delete products with relationship protection
+- [x] Barcode validation
 
 ### Category Management
 
-- [ ] Create categories
-- [ ] List categories
-- [ ] Update categories
-- [ ] Delete categories
+- [x] Create categories
+- [x] List categories
+- [x] Update categories
+- [x] Delete categories with relationship protection
 
 ### Batch Management
 
-- [ ] Register product batches
-- [ ] Track batch quantities
-- [ ] Track expiration dates
-- [ ] Track batch receiving dates
-- [ ] Prevent invalid quantities
-- [ ] Identify expired batches
+- [x] Register product batches
+- [x] Track batch quantities
+- [x] Track expiration dates
+- [x] Track batch receiving dates
+- [x] Prevent invalid quantities
+- [x] Identify expired batches
 
 ### Inventory
 
-- [ ] Add stock
-- [ ] Remove stock
-- [ ] Automatic FEFO stock selection
-- [ ] Calculate available stock
-- [ ] Prevent insufficient stock removal
-- [ ] Expiration warnings
+- [x] Add stock
+- [x] Remove stock through outflow operations
+- [x] Automatic FEFO stock selection
+- [x] Calculate available stock
+- [x] Prevent insufficient stock removal
+- [x] Identify batches near expiration
+- [x] Detect low-stock products
+- [x] Dispose of expired stock
+- [ ] Graphical expiration warnings
 
 ### Stock History
 
-- [ ] Track stock entries
-- [ ] Track stock removals
-- [ ] Record dates and quantities
-- [ ] Track affected batches
+- [x] Track stock entries
+- [x] Track stock removals and disposals
+- [x] Record dates and quantities
+- [x] Track affected batches
 
 ### User Interface
 
-- [ ] Console-based menu
+- [ ] Graphical user interface
 - [ ] Input validation
-- [ ] Error handling
-- [ ] Clear status messages
+- [ ] Clear domain error messages
+- [ ] Low-stock alerts
+- [ ] Expiration and disposal alerts
 
 ---
 
@@ -291,7 +382,7 @@ Possible improvements after the initial version:
 - SQL Server support
 - Improved application architecture
 - Repository/Service patterns where appropriate
-- Automated tests
+- Automated tests with xUnit
 - Logging
 - Better inventory reports
 - Low-stock alerts
@@ -321,7 +412,11 @@ This project is also being used to study and practice:
 - Database constraints
 - Inventory business rules
 - FEFO stock management
+- Stock movement history
+- Expiration and disposal management
+- Domain exceptions
 - Clean and maintainable code
+- Automated testing with xUnit
 
 ---
 
@@ -331,7 +426,9 @@ This project is being developed incrementally.
 
 The current development process is focused on understanding each component before implementing the next one, rather than building the entire application at once.
 
-Future updates will expand the database model, business logic, CRUD functionality, and inventory management features.
+The current backend includes CRUD services, stock movement tracking, FEFO logic, expiration rules, minimum-stock monitoring, disposal operations, and domain exception handling.
+
+The next development stage will focus on automated tests with xUnit before expanding the application further.
 
 ---
 
