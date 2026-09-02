@@ -15,6 +15,12 @@ namespace MedicalStock.Services
 
         public void CreateCategory(string name)
         {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidCategoryNameException(name);
+
+            if (_context.Categories.Any(c => c.Name == name))
+                throw new CategoryAlreadyExistsException(name);
+
             var category = new Category(name);
 
             _context.Categories.Add(category);

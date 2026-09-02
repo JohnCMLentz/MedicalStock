@@ -9,19 +9,30 @@ namespace MedicalStock.Data
         public DbSet<Batch> Batches { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<StockMovement> StockMovements { get; set; }
+        public AppDbContext()
+        {
+        }
+
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
+        {
+        }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            var projectDirectory =
-                Directory.GetParent(AppContext.BaseDirectory)!
-                .Parent!
-                .Parent!
-                .Parent!
-                .FullName;
+            if (!optionsBuilder.IsConfigured)
+            {
+                var projectDirectory =
+                    Directory.GetParent(AppContext.BaseDirectory)!
+                    .Parent!
+                    .Parent!
+                    .Parent!
+                    .FullName;
 
-            var dbPath = Path.Combine(projectDirectory, "MedicalStock.db");
+                var dbPath = Path.Combine(projectDirectory, "MedicalStock.db");
 
-            optionsBuilder.UseSqlite($"Data Source={dbPath}");
+                optionsBuilder.UseSqlite($"Data Source={dbPath}");
+            }
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
