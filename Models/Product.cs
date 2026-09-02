@@ -14,12 +14,13 @@ namespace MedicalStock.Models
         public ICollection<Batch>? Batches { get; } = new List<Batch>();
         public int MinimumStock { get; set; }
 
-        public Product(string name, string barcode, string manufacturer, decimal price, int categoryId)
+        public Product(string name, string barcode, string manufacturer, decimal price, int minimumStock, int categoryId)
         {
             Name = name;
             Barcode = barcode;
             Manufacturer = manufacturer;
             Price = price;
+            MinimumStock = minimumStock;
             CategoryId = categoryId;
         }
 

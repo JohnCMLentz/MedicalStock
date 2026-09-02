@@ -1,5 +1,6 @@
 ﻿using MedicalStock.Data;
 using MedicalStock.Models;
+using MedicalStock.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedicalStock.Services
@@ -60,6 +61,7 @@ namespace MedicalStock.Services
         {
             return _batchService.GetBatches()
                 .Where(b => (b.ExpirationDate - DateTime.Today).Days <= days)
+                .Where(b => (b.ExpirationDate - DateTime.Today).Days >= 0)
                 .Where(b => b.Quantity > 0)
                 .OrderBy(b => b.ExpirationDate)
                 .ToList();
@@ -97,7 +99,7 @@ namespace MedicalStock.Services
             if (product == null)
                 return false;
 
-            return product.MinimumStock <= 0 ? false : true;
+            return GetNumberOfProducts(productId) <= 0 ? false : true;
         }
 
         public bool IsLowStock(int productId)
@@ -105,6 +107,9 @@ namespace MedicalStock.Services
             var product = _productService.GetProductById(productId);
 
             if(product == null)
+                return false;
+
+            if (product.MinimumStock <= 0)
                 return false;
 
             int actualQuantity = GetNumberOfProducts(productId);
@@ -128,32 +133,59 @@ namespace MedicalStock.Services
             return products;
         }
 
-        public bool AddStock(int productId, int quantity, DateTime expirationDate, DateTime? receivedAt)
+        public void AddStock(int productId, int quantity, DateTime expirationDate, DateTime? receivedAt)
         {
             if (!receivedAt.HasValue)
                 receivedAt = DateTime.Now;
                         
-            Batch? batch = _batchService.CreateBatch(productId,quantity,expirationDate,receivedAt.Value);
-            if (batch == null) return false;
+            Batch batch = _batchService.CreateBatch(productId,quantity,expirationDate,receivedAt.Value);
 
             var stockMovement = new StockMovement(batch,quantity,MovementType.Entry,receivedAt.Value);
             
             _context.StockMovements.Add(stockMovement);
             _context.SaveChanges();
-            return true;
         }
 
-        public bool RemoveStock(int productId, int quantity)
+        public void OutflowStock(int productId, int quantity)
         {
-            if (quantity <= 0) return false;
+            if (quantity <= 0) 
+                throw new InvalidQuantityException();
 
-            if (!_context.Products.Any(p => p.Id == productId)) return false;
-
-            List<Batch> batches = _batchService.GetBatchesByFEFO(productId);
+            if (!_context.Products.Any(p => p.Id == productId))
+                throw new ProductNotFoundException(productId);
 
             int totalStock = GetNumberOfProducts(productId);
+
+            if (totalStock < quantity) 
+                throw new InsufficientStockException(productId,quantity,totalStock);
+
+            var batches = _batchService.GetBatchesByFEFO(productId);
+
+            RemoveStock(batches, quantity, MovementType.Outflow);
+        }
+
+        public void DisposalStock(int productId)
+        {
+            if (!_context.Products.Any(p => p.Id == productId))
+                throw new ProductNotFoundException(productId);
+
+            var batches = _batchService.GetBatchesByProduct(productId)
+                .Where(b => b.ExpirationDate.Date < DateTime.Today)
+                .Where(b => b.Quantity > 0)
+                .ToList();
             
-            if (totalStock < quantity) return false;
+            if(batches.Count == 0)
+                throw new NoExpiredStockException();
+
+            int totalStock = batches.Sum(b => b.Quantity);
+
+            RemoveStock(batches, totalStock, MovementType.Disposal);
+        }
+
+        private void RemoveStock(List<Batch> batches, int quantity, MovementType type)
+        {
+            if (quantity <= 0)
+                throw new InvalidQuantityException();
 
             for (int i = 0; i < batches.Count; i++)
             {
@@ -167,10 +199,9 @@ namespace MedicalStock.Services
                 {
                     batch.Quantity = 0;
                     quantity -= removedQuantity;
-                    removedQuantity = 0;
                 }
                 else
-                {                    
+                {
                     batch.Quantity -= quantity;
                     removedQuantity = quantity;
                     quantity = 0;
@@ -179,15 +210,14 @@ namespace MedicalStock.Services
                 var stockMovement = new StockMovement(
                     batch,
                     removedQuantity,
-                    MovementType.Outflow,
+                    type,
                     DateTime.Now
-                    );
+                );
 
                 _context.StockMovements.Add(stockMovement);
             }
 
             _context.SaveChanges();
-            return true;
         }
 
         public string GetProductStockInfo(int productId)

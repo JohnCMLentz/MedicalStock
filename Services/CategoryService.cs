@@ -1,5 +1,6 @@
 ﻿using MedicalStock.Data;
 using MedicalStock.Models;
+using MedicalStock.Exceptions;
 
 namespace MedicalStock.Services
 {
@@ -30,31 +31,30 @@ namespace MedicalStock.Services
             return _context.Categories.FirstOrDefault(c => c.Id == id);
         }
 
-        public bool UpdateCategory(int id, string name)
+        public void UpdateCategory(int id, string name)
         {
             var category = _context.Categories.FirstOrDefault(c => c.Id == id);
 
             if (category == null)
-                return false;
+                throw new CategoryNotFoundException(id);
 
             category.Name = name;
 
             _context.SaveChanges();
-
-            return true;
         }
 
-        public bool DeleteCategory(int id)
+        public void DeleteCategory(int id)
         {
             var category = _context.Categories.FirstOrDefault(c => c.Id == id);
 
             if (category == null)
-                return false;
-            
+                throw new CategoryNotFoundException(id);
+
+            if (_context.Products.Any(p => p.Id == id))
+                throw new CategoryHasProductsException(id);
+
             _context.Categories.Remove(category);
             _context.SaveChanges();
-
-            return true;
         }
     }
 }

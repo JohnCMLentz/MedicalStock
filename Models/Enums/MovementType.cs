@@ -3,5 +3,6 @@
 public enum MovementType
 {
     Entry,
-    Outflow
+    Outflow,
+    Disposal
 }

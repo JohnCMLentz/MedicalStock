@@ -1,4 +1,5 @@
 ﻿using MedicalStock.Data;
+using MedicalStock.Exceptions;
 using MedicalStock.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,17 +49,20 @@ namespace MedicalStock
             else
                 Console.WriteLine("Erro ao remover!");
             */
-
-            if (inventoryService.AddStock(
+            try
+            {
+                inventoryService.AddStock(
                 1,
                 110,
                 DateTime.Parse("2026-09-25"),
-                null))
+                null);
                 Console.WriteLine("Stock adicionado");
-            else
-                Console.WriteLine("Erro ao adicionar!");
+            }
+            catch (DomainException ex)
+            {
+                Console.WriteLine($"{ex.Message}");
+            }
 
-            Console.WriteLine(inventoryService.GetExpiretionBatchesInfo());
 
             /*
             Console.WriteLine();

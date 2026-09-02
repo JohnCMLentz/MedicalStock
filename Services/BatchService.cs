@@ -1,5 +1,6 @@
 ﻿using MedicalStock.Data;
 using MedicalStock.Models;
+using MedicalStock.Exceptions;
 
 namespace MedicalStock.Services
 {
@@ -10,30 +11,6 @@ namespace MedicalStock.Services
         public BatchService(AppDbContext context)
         {
             _context = context;
-        }
-
-        public Batch? CreateBatch(int productId, int quantity, DateTime expirationDate, DateTime receivedAt)
-        {
-            if (quantity <= 0)
-                return null;
-            if (expirationDate <= receivedAt)
-                return null;
-            if (receivedAt.Date > DateTime.Today)
-                return null;
-            if (!_context.Products.Any(p => p.Id == productId))
-                return null;
-
-            var batch = new Batch
-                (
-                productId,
-                quantity,
-                expirationDate,
-                receivedAt
-                );
-
-            _context.Batches.Add(batch);
-
-            return batch;
         }
 
         public List<Batch> GetBatches()
@@ -50,6 +27,7 @@ namespace MedicalStock.Services
         {
             return _context.Batches
                 .Where(b => b.ProductId == productId && b.Quantity > 0)
+                .Where(b => b.ExpirationDate.Date >= DateTime.Today)
                 .OrderBy(b => b.ExpirationDate)
                 .ToList();
         }
@@ -59,54 +37,85 @@ namespace MedicalStock.Services
             return _context.Batches.FirstOrDefault(b => b.Id == id);
         }
 
-        public bool UpdateBatch(int id, int? productId, int? quantity, DateTime? expirationDate, DateTime? receivedAt)
+        public Batch CreateBatch(int productId, int quantity, DateTime expirationDate, DateTime receivedAt)
+        {
+            if (quantity <= 0)
+                throw new InvalidQuantityException();
+            if (expirationDate <= receivedAt ||
+                expirationDate < DateTime.Today)
+                throw new InvalidExpirationDateException(expirationDate);
+            if (receivedAt.Date > DateTime.Today)
+                throw new InvalidReceivedDateException();
+            if (!_context.Products.Any(p => p.Id == productId))
+                throw new ProductNotFoundException(productId);
+
+            var batch = new Batch
+                (
+                productId,
+                quantity,
+                expirationDate,
+                receivedAt
+                );
+
+            _context.Batches.Add(batch);
+
+            return batch;
+        }
+
+        public void UpdateBatch(int id, int? productId, DateTime? expirationDate, DateTime? receivedAt)
         {
             var batch = GetBatchById(id);
 
-            if (batch == null) return false;
+            if (batch == null)
+                throw new BatchNotFoundException(id);
 
             if (productId.HasValue)
             {
                 if (!_context.Products.Any(p => p.Id == productId))
-                    return false;
+                    throw new ProductNotFoundException(productId.Value);
 
                 batch.ProductId = productId.Value;
             }
 
-            if (quantity.HasValue)
-            {
-                if (quantity.Value <= 0)
-                    return false;
-
-                batch.Quantity = quantity.Value;
-            }
-
-            if (expirationDate.HasValue)
-                batch.ExpirationDate = expirationDate.Value;
-
-            if (receivedAt.HasValue)
-                batch.ReceivedAt = receivedAt.Value;
-
 
             if (expirationDate.HasValue || receivedAt.HasValue)
-                if (batch.ExpirationDate <= batch.ReceivedAt)
-                    return false;
+            {
+                var expiration = expirationDate.HasValue ? expirationDate.Value : batch.ExpirationDate;
+                var receive = receivedAt.HasValue ? receivedAt.Value : batch.ReceivedAt;
+
+                if (expirationDate.HasValue && expiration < DateTime.Today)
+                    throw new InvalidExpirationDateException(expiration);
+
+                if (expiration <= receive)
+                    throw new InvalidExpirationDateException(expiration);
+
+                if (expirationDate.HasValue)
+                    batch.ExpirationDate = expiration;
+
+                if (receivedAt.HasValue)
+                {
+                    if (receive > DateTime.Today)
+                        throw new InvalidReceivedDateException();
+
+                    batch.ReceivedAt = receive;
+                }
+            }
 
             _context.SaveChanges();
-
-            return true;
         }
 
-        public bool DeleteBatch(int id)
+        public void DeleteBatch(int id)
         {
             var batch = _context.Batches.FirstOrDefault(b => b.Id == id);
 
-            if (batch == null) return false;
+            if (batch == null)
+                throw new BatchNotFoundException(id);
+
+            if (_context.StockMovements.Any(sm => sm.BatchId == id))
+                throw new BatchHasMovementsException(id);
 
             _context.Batches.Remove(batch);
             _context.SaveChanges();
-
-            return true;
         }
 
     }
