@@ -13,7 +13,7 @@ namespace MedicalStock.Services
             _context = context;
         }
 
-        public void CreateCategory(string name)
+        public Category CreateCategory(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new InvalidCategoryNameException(name);
@@ -25,6 +25,8 @@ namespace MedicalStock.Services
 
             _context.Categories.Add(category);
             _context.SaveChanges();
+
+            return category;
         }
 
         public List<Category> GetCategories()
@@ -32,9 +34,14 @@ namespace MedicalStock.Services
             return _context.Categories.ToList();
         }
 
-        public Category? GetCategoryById(int id)
+        public Category GetCategoryById(int id)
         {
-            return _context.Categories.FirstOrDefault(c => c.Id == id);
+            var category = _context.Categories.FirstOrDefault(c => c.Id == id);
+
+            if (category == null)
+                throw new CategoryNotFoundException(id);
+
+            return category;
         }
 
         public void UpdateCategory(int id, string name)
@@ -43,6 +50,12 @@ namespace MedicalStock.Services
 
             if (category == null)
                 throw new CategoryNotFoundException(id);
+
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidCategoryNameException(name);
+
+            if(_context.Categories.Any(c => c.Name == name && c.Id != id))
+                throw new CategoryAlreadyExistsException(name);
 
             category.Name = name;
 

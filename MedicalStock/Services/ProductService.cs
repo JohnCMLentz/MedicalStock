@@ -14,7 +14,7 @@ namespace MedicalStock.Services
             _context = context;
         }
 
-        public void CreateProduct(string name, string barcode, string manufacturer, decimal price, int minimumStock, int categoryId)
+        public Product CreateProduct(string name, string barcode, string manufacturer, decimal price, int minimumStock, int categoryId)
         {
             if (string.IsNullOrWhiteSpace(name)) 
                 throw new InvalidProductNameException(name);
@@ -43,6 +43,8 @@ namespace MedicalStock.Services
 
             _context.Products.Add(product);
             _context.SaveChanges();
+
+            return product;
         }
 
         public List<Product> GetProducts()
