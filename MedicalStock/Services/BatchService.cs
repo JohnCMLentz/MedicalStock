@@ -39,6 +39,8 @@ namespace MedicalStock.Services
 
         public Batch CreateBatch(int productId, int quantity, DateTime expirationDate, DateTime receivedAt)
         {
+            if (!_context.Products.Any(p => p.Id == productId))
+                throw new ProductNotFoundException(productId);
             if (quantity <= 0)
                 throw new InvalidQuantityException();
             if (expirationDate <= receivedAt ||
@@ -46,8 +48,6 @@ namespace MedicalStock.Services
                 throw new InvalidExpirationDateException(expirationDate);
             if (receivedAt.Date > DateTime.Today)
                 throw new InvalidReceivedDateException();
-            if (!_context.Products.Any(p => p.Id == productId))
-                throw new ProductNotFoundException(productId);
 
             var batch = new Batch
                 (

@@ -29,7 +29,7 @@ namespace MedicalStock.Services
             if (!_context.Categories.Any(c => c.Id == categoryId))
                 throw new CategoryNotFoundException(categoryId);
             if (GetProductByBarcode(barcode) != null)
-                throw new ProductAlreadyExistsException(barcode);
+                throw new DuplicateBarcodeException(barcode);
 
             var product = new Product
                 (
@@ -69,12 +69,11 @@ namespace MedicalStock.Services
             if (product == null)
                 throw new ProductNotFoundException(id);
 
-            if (categoryId.HasValue)
+            if (name != null)
             {
-                if (!_context.Categories.Any(c => c.Id == categoryId))
-                    throw new CategoryNotFoundException(categoryId.Value);
-
-                product.CategoryId = categoryId.Value;
+                if (string.IsNullOrWhiteSpace(name))
+                    throw new InvalidProductNameException(name);
+                product.Name = name;
             }
 
             if(barcode != null)
@@ -85,19 +84,39 @@ namespace MedicalStock.Services
                 var existingProduct = GetProductByBarcode(barcode);
 
                 if (existingProduct != null && existingProduct.Id != id)
-                    throw new ProductAlreadyExistsException(barcode);
+                    throw new DuplicateBarcodeException(barcode);
 
                 product.Barcode = barcode;
             }
 
-            if (name != null && !string.IsNullOrWhiteSpace(name))
-                product.Name = name;
-            if (manufacturer != null && !string.IsNullOrWhiteSpace(manufacturer))
+            if (manufacturer != null)
+            {
+                if (string.IsNullOrWhiteSpace(manufacturer))
+                    throw new InvalidProductManufacturerException(manufacturer);
                 product.Manufacturer = manufacturer;
-            if (price.HasValue && price.Value > 0)
+            }
+
+            if (price.HasValue)
+            {
+                if (price <= 0)
+                    throw new InvalidProductPriceException(price.Value);
                 product.Price = price.Value;
-            if (minimumStock.HasValue && minimumStock.Value >= 0)
+            }
+
+            if (minimumStock.HasValue)
+            {
+                if (minimumStock < 0)
+                    throw new InvalidProductMinimumStockException(minimumStock.Value);
                 product.MinimumStock = minimumStock.Value;
+            }
+
+            if (categoryId.HasValue)
+            {
+                if (!_context.Categories.Any(c => c.Id == categoryId))
+                    throw new CategoryNotFoundException(categoryId.Value);
+
+                product.CategoryId = categoryId.Value;
+            }
 
             _context.SaveChanges();
         }

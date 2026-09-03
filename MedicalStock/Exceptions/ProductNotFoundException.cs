@@ -6,5 +6,9 @@
             : base($"Product with ID {productId} was not found.")
         {
         }
+        public ProductNotFoundException(string productBarcode)
+            : base($"Product with Barcode {productBarcode} was not found.")
+        {
+        }
     }
 }

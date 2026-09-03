@@ -5,7 +5,6 @@ using MedicalStock.Services;
 using MedicalStock.Exceptions;
 
 namespace MedicalStock.Tests;
-
 public class CategoryServiceTests
 {
     private (SqliteConnection connection, AppDbContext context) CreateTestContext()
@@ -234,6 +233,21 @@ public class CategoryServiceTests
     }
 
     [Fact]
+    public void DeleteCategory_NonExistingId_ThrowsCategoryNotFoundException()
+    {
+        // Arrange
+        var (connection, context) = CreateTestContext();
+        using (connection)
+        using (context)
+        {
+            var categoryService = new CategoryService(context);
+
+            // Act + Assert
+            Assert.Throws<CategoryNotFoundException>(() => categoryService.DeleteCategory(999));
+        }
+    }
+
+    [Fact]
     public void DeleteCategory_ExistingCategoryWithoutProducts_DeletesCategory()
     {
         // Arrange
@@ -249,21 +263,6 @@ public class CategoryServiceTests
 
             // Assert
             Assert.Throws<CategoryNotFoundException>(() => categoryService.GetCategoryById(category.Id));
-        }
-    }
-
-    [Fact]
-    public void DeleteCategory_NonExistingId_ThrowsCategoryNotFoundException()
-    {
-        // Arrange
-        var (connection, context) = CreateTestContext();
-        using (connection)
-        using (context)
-        {
-            var categoryService = new CategoryService(context);
-
-            // Act + Assert
-            Assert.Throws<CategoryNotFoundException>(() => categoryService.DeleteCategory(999));
         }
     }
 
