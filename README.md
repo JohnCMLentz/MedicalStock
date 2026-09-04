@@ -1,18 +1,20 @@
 # Medical Stock Management System
 
-A medical and pharmaceutical stock management system developed in C# with .NET, Entity Framework Core, and SQLite.
+A medical and pharmaceutical stock management system developed in C# with .NET, Entity Framework Core, SQLite, and xUnit.
 
-This project was created as a learning and portfolio project, with a focus on object-oriented programming, relational database modeling, CRUD operations, Entity Framework Core, and inventory management business rules.
+This project was created as a learning and portfolio project, with a focus on object-oriented programming, relational database modeling, CRUD operations, Entity Framework Core, inventory management business rules, domain exceptions, and automated testing.
 
 ---
 
 ## Project Status
 
-**In Development**
+**Version 1.0.0 — Core project completed**
 
-The project is currently under active development. The core database structure, entity relationships, CRUD services, stock movements, FEFO stock rotation, expiration rules, minimum-stock monitoring, disposal operations, and domain exception handling have been implemented.
+The first stable version of the project is complete.
 
-The next development stage will focus on automated testing with xUnit, followed by further application and interface improvements.
+The application includes the core database structure, entity relationships, CRUD services, stock movements, FEFO stock rotation, expiration rules, minimum-stock monitoring, disposal operations, domain-specific exception handling, Entity Framework Core migrations, and automated tests with xUnit.
+
+The project is intentionally being closed at this stage as a console-based learning and portfolio project. Future development concepts, such as REST APIs, ASP.NET Core, SQL Server, and more advanced application architecture, will be explored in a separate project.
 
 ---
 
@@ -30,6 +32,7 @@ The main goals of this project are:
 - Track stock movement history
 - Apply domain-specific exception handling
 - Practice migrations and database versioning
+- Practice automated testing with xUnit
 - Develop a structured and maintainable application
 - Build a portfolio project following common software development practices
 
@@ -42,14 +45,17 @@ The main goals of this project are:
 - Entity Framework Core
 - SQLite
 - LINQ
+- xUnit
+- Microsoft.NET.Test.Sdk
+- coverlet.collector
 - Visual Studio
 - Git / GitHub
 
 ---
 
-## Current Architecture
+## Project Structure
 
-The project currently follows a simple separation of responsibilities:
+The project follows a simple separation of responsibilities:
 
 ```text
 MedicalStock
@@ -79,15 +85,20 @@ MedicalStock
 |-- MedicalStock.db
 |
 `-- Program.cs
-```
 
-The structure may evolve as new features are implemented.
+MedicalStock.Tests
+|
+|-- CategoryServiceTests.cs
+|-- ProductServiceTests.cs
+|-- BatchServiceTests.cs
+`-- InventoryServiceTests.cs
+```
 
 ---
 
 ## Domain Model
 
-The current database model consists of four main entities.
+The database model consists of four main entities.
 
 ### Category
 
@@ -126,10 +137,13 @@ Batch
 |-- ProductId
 |-- Quantity
 |-- ExpirationDate
-`-- ReceivedAt
+|-- ReceivedAt
+`-- IsActive
 ```
 
 A product can have multiple batches, allowing different quantities and expiration dates to be tracked independently.
+
+`IsActive` represents the administrative state of the batch. Stock availability is still determined by quantity and expiration rules.
 
 ### StockMovement
 
@@ -188,10 +202,11 @@ One batch can contain multiple stock movements. Each movement identifies the aff
 
 The inventory system uses FEFO (First Expired, First Out) as its stock rotation strategy.
 
-When a product is removed from inventory, the system prioritizes valid batches with the earliest expiration date. Expired batches are excluded from regular stock outflows.
+When a product is removed from inventory, the system prioritizes active and valid batches with the earliest expiration date. Expired batches are excluded from regular stock outflows.
 
 For example:
 
+```text
 Paracetamol
 
 Batch A
@@ -205,17 +220,22 @@ Expiration: 2027-01-15
 Batch C
 Quantity: 80
 Expiration: 2027-08-20
+```
 
 If 60 units are removed:
 
+```text
 Batch A -> 50 removed
 Batch B -> 10 removed
+```
 
 Remaining stock:
 
+```text
 Batch A -> 0
 Batch B -> 90
 Batch C -> 80
+```
 
 This approach is particularly appropriate for perishable and pharmaceutical products.
 
@@ -223,11 +243,11 @@ This approach is particularly appropriate for perishable and pharmaceutical prod
 
 ## Inventory Business Rules
 
-The system currently implements the following business rules:
+The system implements the following business rules:
 
 - Stock entries create new batches instead of modifying existing batches.
 - Every stock entry generates an `Entry` stock movement.
-- Available stock only includes batches with a positive quantity that have not expired.
+- Available stock only includes active batches with a positive quantity that have not expired.
 - Products remain valid throughout their expiration date.
 - Regular stock outflows cannot use expired batches.
 - Stock outflows follow FEFO.
@@ -238,12 +258,17 @@ The system currently implements the following business rules:
 - Stock equal to or below the configured minimum is considered low stock.
 - A minimum stock value of zero disables the low-stock alert.
 - Product prices must be greater than zero.
-- Entities with historical relationships are protected from deletion.
+- Categories and products with related historical data are protected from invalid deletion operations.
+- Batches can be administratively deactivated according to the batch rules.
 - Invalid business operations are represented by domain-specific exceptions.
 
 ### Expiration and Disposal
 
-A batch remains valid throughout its expiration date and becomes expired on the following day. Expired stock is excluded from available stock and cannot be used in regular outflows, but it remains stored until an explicit disposal operation is performed.
+A batch remains valid throughout its expiration date and becomes expired on the following day.
+
+Expired stock is excluded from available stock and cannot be used in regular outflows, but it remains stored until an explicit disposal operation is performed.
+
+When expired stock is disposed, the affected batch quantities are reduced and `Disposal` stock movements preserve the operation in the inventory history.
 
 ### Minimum Stock
 
@@ -252,23 +277,55 @@ A batch remains valid throughout its expiration date and becomes expired on the 
 - `AvailableStock <= MinimumStock`: low stock
 - `AvailableStock == 0`: out of stock
 
-Only non-expired stock is considered available.
+Only active and non-expired stock with a positive quantity is considered available.
 
 ### Domain Exceptions
 
-Services use domain-specific exceptions instead of relying only on `false` or `null` results. These exceptions cover invalid data, duplicate barcodes, invalid quantities or dates, missing entities, insufficient stock, missing expired stock for disposal, and protected deletion operations.
+Services use domain-specific exceptions for invalid business operations.
+
+These exceptions cover scenarios such as:
+
+- Invalid names or required values
+- Duplicate category names or product barcodes
+- Invalid prices
+- Invalid quantities
+- Invalid expiration or receiving dates
+- Missing categories, products, or batches
+- Insufficient available stock
+- Missing expired stock during disposal operations
+- Protected deletion or deactivation operations
+
+Queries that are designed to search for optional data may still return `null` or empty collections when appropriate.
+
+---
+
+## Inventory Queries and Monitoring
+
+The inventory service also provides query operations for stock monitoring, including:
+
+- Retrieve all stock movements
+- Retrieve movements by batch
+- Retrieve movements by product
+- Calculate the available quantity of a product
+- Check whether enough stock is available for an operation
+- Detect low-stock products
+- Retrieve expired batches
+- Retrieve batches near expiration
+- Calculate the number of days until a batch expires
 
 ---
 
 ## Database
 
-The application currently uses SQLite as its database provider through Entity Framework Core.
+The application uses SQLite as its database provider through Entity Framework Core.
 
 The database file is:
 
+```text
 MedicalStock.db
+```
 
-Entity Framework Core is responsible for mapping the C# entities to the relational database.
+Entity Framework Core maps the C# entities to the relational database and manages schema evolution through migrations.
 
 ---
 
@@ -276,66 +333,173 @@ Entity Framework Core is responsible for mapping the C# entities to the relation
 
 The project uses Entity Framework Core migrations to manage database changes.
 
-The initial database was created using:
+The initial database can be created and updated through the Package Manager Console:
 
-Add-Migration InitialCreate
+```powershell
 Update-Database
+```
 
-Future changes to the data model will be managed through additional migrations.
+When the model changes, a new migration can be created and applied:
 
-Example:
-
-Add-Migration AddNewFeature
+```powershell
+Add-Migration MigrationName
 Update-Database
+```
+
+The project currently contains the migrations required to build the database schema used by the application.
 
 ---
 
-## Current EF Core Configuration
+## EF Core Configuration
 
-The SQLite database is configured through AppDbContext.
+The SQLite database is configured through `AppDbContext`.
 
-The current context contains:
+The context contains:
 
-- DbSet<Product>
-- DbSet<Batch>
-- DbSet<Category>
-- DbSet<StockMovement>
+- `DbSet<Product>`
+- `DbSet<Batch>`
+- `DbSet<Category>`
+- `DbSet<StockMovement>`
 
 Entity relationships are explicitly configured using EF Core Fluent API.
 
 Current relationships:
 
+```text
 Category 1:N Product
 Product 1:N Batch
+Batch 1:N StockMovement
+```
 
-The project also includes database constraints such as:
+The project also includes database constraints and configuration such as:
 
-- Required product fields
-- Maximum string lengths
+- Required entity fields
+- Maximum string lengths where applicable
+- Unique category names
 - Unique product barcodes
 - Decimal precision for product prices
 - Foreign key relationships
 - Restricted deletion behavior for related entities
 
+`AppDbContext` also supports externally supplied `DbContextOptions`, allowing automated tests to use isolated SQLite in-memory databases instead of the application's main database file.
+
 ---
 
-## Planned Features
+## Testing
+
+The project includes automated tests using xUnit.
+
+The test suite covers the main service behaviors and business rules, including:
+
+- Category creation, update, search, and deletion
+- Category validation and duplicate-name protection
+- Product creation, update, search, and deletion
+- Product validation and barcode uniqueness
+- Batch creation, update, lookup, FEFO ordering, and deactivation
+- Stock entries
+- Stock outflows
+- Stock removal across multiple batches
+- Stock movement creation and history
+- Available-stock calculations
+- Minimum-stock monitoring
+- Expiration rules
+- Expired-stock disposal
+- Domain exception handling
+
+### Test Database
+
+Tests use SQLite in-memory databases.
+
+Each test creates an isolated database connection and schema, allowing tests to execute against SQLite behavior without modifying the application's main `MedicalStock.db`.
+
+Conceptually:
+
+```text
+Test starts
+    |
+    v
+Open SQLite in-memory connection
+    |
+    v
+Create AppDbContext
+    |
+    v
+EnsureCreated()
+    |
+    v
+Execute test
+    |
+    v
+Dispose context and connection
+    |
+    v
+Temporary database is removed
+```
+
+This keeps tests independent and prevents data from one test from affecting another.
+
+### Testing Technologies
+
+- xUnit
+- Microsoft.EntityFrameworkCore.Sqlite
+- Microsoft.NET.Test.Sdk
+- xunit.runner.visualstudio
+- coverlet.collector
+
+### Test Organization
+
+Tests are separated by service:
+
+```text
+MedicalStock.Tests
+|
+|-- CategoryServiceTests
+|-- ProductServiceTests
+|-- BatchServiceTests
+`-- InventoryServiceTests
+```
+
+Test names follow a behavior-oriented convention:
+
+```text
+Method_Scenario_ExpectedResult
+```
+
+For example:
+
+```text
+OutflowStock_InsufficientStock_ThrowsInsufficientStockException
+GetBatchesByFEFO_WhenBatchesExist_ReturnsBatches
+IsLowStock_StockBelowMinimum_ReturnsTrue
+```
+
+The test suite also uses both `[Fact]` and `[Theory]` with `[InlineData]` when the same expected behavior must be validated against multiple input values.
+
+In addition to automated service tests, the main inventory workflow was manually validated end-to-end using scenarios that combine category creation, product creation, multiple stock entries, stock outflow, FEFO behavior, movement history, expiration, and disposal.
+
+---
+
+## Implemented Features
 
 ### Product Management
 
 - [x] Create products
 - [x] List products
-- [x] Search products
+- [x] Search products by ID and barcode
 - [x] Update products
 - [x] Delete products with relationship protection
-- [x] Barcode validation
+- [x] Validate product data
+- [x] Enforce unique barcodes
+- [x] Configure minimum stock
 
 ### Category Management
 
 - [x] Create categories
 - [x] List categories
+- [x] Search categories
 - [x] Update categories
 - [x] Delete categories with relationship protection
+- [x] Enforce unique category names
 
 ### Batch Management
 
@@ -343,8 +507,10 @@ The project also includes database constraints such as:
 - [x] Track batch quantities
 - [x] Track expiration dates
 - [x] Track batch receiving dates
-- [x] Prevent invalid quantities
+- [x] Prevent invalid quantities and dates
 - [x] Identify expired batches
+- [x] Order valid stock using FEFO
+- [x] Administratively deactivate batches
 
 ### Inventory
 
@@ -356,46 +522,55 @@ The project also includes database constraints such as:
 - [x] Identify batches near expiration
 - [x] Detect low-stock products
 - [x] Dispose of expired stock
-- [ ] Graphical expiration warnings
+- [x] Ignore expired stock when calculating available inventory
 
 ### Stock History
 
 - [x] Track stock entries
-- [x] Track stock removals and disposals
-- [x] Record dates and quantities
+- [x] Track stock removals
+- [x] Track expired-stock disposals
+- [x] Record movement dates and quantities
 - [x] Track affected batches
+- [x] Retrieve movements by batch and product
 
-### User Interface
+### Automated Testing
 
-- [ ] Graphical user interface
-- [ ] Input validation
-- [ ] Clear domain error messages
-- [ ] Low-stock alerts
-- [ ] Expiration and disposal alerts
+- [x] Category service tests
+- [x] Product service tests
+- [x] Batch service tests
+- [x] Inventory service tests
+- [x] SQLite in-memory test databases
+- [x] Domain exception scenarios
+- [x] Manual end-to-end workflow validation
 
 ---
 
-## Future Improvements
+## Possible Future Improvements
 
-Possible improvements after the initial version:
+This version intentionally focuses on the console application, domain rules, persistence, and testing.
 
-- SQL Server support
-- Improved application architecture
-- Repository/Service patterns where appropriate
-- Automated tests with xUnit
+Possible future extensions or related projects include:
+
+- ASP.NET Core Web API
+- REST endpoints
+- DTOs
+- Dependency Injection through ASP.NET Core
+- Swagger / OpenAPI
+- SQL Server
+- Authentication and authorization
 - Logging
-- Better inventory reports
-- Low-stock alerts
-- Expiration alerts
+- Improved inventory reports
 - Barcode scanner integration
-- Graphical user interface
-- API development
+- Graphical or web user interface
+- API and integration testing
+
+The next learning project is planned to revisit the MedicalStock domain as a Web API, using the knowledge gained from this console version as its foundation.
 
 ---
 
 ## Learning Objectives
 
-This project is also being used to study and practice:
+This project was used to study and practice:
 
 - Object-Oriented Programming
 - Encapsulation
@@ -414,21 +589,60 @@ This project is also being used to study and practice:
 - FEFO stock management
 - Stock movement history
 - Expiration and disposal management
+- Minimum-stock monitoring
 - Domain exceptions
-- Clean and maintainable code
 - Automated testing with xUnit
+- SQLite in-memory testing
+- Test isolation
+- Behavior-oriented test naming
+- Git and GitHub
+- Clean and maintainable code
 
 ---
 
 ## Project Development
 
-This project is being developed incrementally.
+The project was developed incrementally, with each part implemented only after the previous concepts and business rules were understood and tested.
 
-The current development process is focused on understanding each component before implementing the next one, rather than building the entire application at once.
+The development process evolved through:
 
-The current backend includes CRUD services, stock movement tracking, FEFO logic, expiration rules, minimum-stock monitoring, disposal operations, and domain exception handling.
+```text
+Domain entities
+    |
+    v
+Database relationships
+    |
+    v
+CRUD services
+    |
+    v
+Inventory rules
+    |
+    v
+Stock movement history
+    |
+    v
+Expiration and disposal
+    |
+    v
+Domain exceptions
+    |
+    v
+Automated tests
+    |
+    v
+Final validation
+```
 
-The next development stage will focus on automated tests with xUnit before expanding the application further.
+This incremental approach allowed the project to evolve from a simple CRUD application into a stock-management system with explicit domain rules, persistence, inventory history, and automated validation.
+
+---
+
+## Version
+
+**v1.0.0**
+
+First stable version of the MedicalStock console application.
 
 ---
 
