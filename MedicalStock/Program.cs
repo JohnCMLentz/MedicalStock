@@ -1,5 +1,6 @@
 ﻿using MedicalStock.Data;
 using MedicalStock.Exceptions;
+using MedicalStock.Models;
 using MedicalStock.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,66 +16,87 @@ namespace MedicalStock
             var batchService = new BatchService(context);
             var inventoryService = new InventoryService(context);
 
-            /*
-            productService.CreateProduct
-                (
-                "Paracetamol 500mg",
-                "7891000000011",
-                "MedPharma",
-                8.50m,
-                1
+            Console.WriteLine("=== TESTE 2 - DESCARTE DE ESTOQUE VENCIDO ===");
+
+            var category = categoryService.CreateCategory("Medicamentos");
+
+            var product = productService.CreateProduct(
+                "Paracetamol",
+                "7899876543210",
+                "EMS",
+                9.90m,
+                30,
+                category.Id
+            );
+
+            var expiredBatch1 = inventoryService.AddStock(
+                product.Id,
+                100,
+                DateTime.Today.AddDays(30),
+                DateTime.Today
+            );
+
+            var expiredBatch2 = inventoryService.AddStock(
+                product.Id,
+                50,
+                DateTime.Today.AddDays(30),
+                DateTime.Today
+            );
+
+            var validBatch = inventoryService.AddStock(
+                product.Id,
+                200,
+                DateTime.Today.AddDays(60),
+                DateTime.Today
+            );
+
+            // Simula lotes que ficaram vencidos posteriormente
+            expiredBatch1.ExpirationDate = DateTime.Today.AddDays(-10);
+            expiredBatch2.ExpirationDate = DateTime.Today.AddDays(-5);
+
+            context.SaveChanges();
+
+            Console.WriteLine($"Estoque disponível antes do descarte: {inventoryService.GetNumberOfProducts(product.Id)}");
+
+            var expiredBatches = inventoryService.GetExpiredBatches();
+
+            Console.WriteLine($"Lotes vencidos encontrados: {expiredBatches.Count}");
+
+            inventoryService.DisposalStock(product.Id);
+
+            Console.WriteLine($"Estoque disponível após descarte: {inventoryService.GetNumberOfProducts(product.Id)}");
+
+            var batches = batchService.GetBatchesByProduct(product.Id);
+
+            foreach (var batch in batches)
+            {
+                Console.WriteLine(
+                    $"Batch {batch.Id} | Quantity: {batch.Quantity} | Expiration: {batch.ExpirationDate:dd/MM/yyyy}"
                 );
-            productService.CreateProduct
-                (
-                "Dipyrone 500mg",
-                "7891000000028",
-                "FarmaBrasil",
-                7.90m,
-                1
+            }
+
+            var disposalMovements = inventoryService
+                .GetMovementsByProduct(product.Id)
+                .Where(sm => sm.Type == MovementType.Disposal)
+                .ToList();
+
+            Console.WriteLine($"\nMovimentos de descarte: {disposalMovements.Count}");
+
+            foreach (var movement in disposalMovements)
+            {
+                Console.WriteLine(
+                    $"Batch: {movement.BatchId} | Quantity: {movement.Quantity}"
                 );
-            
-            if (inventoryService.AddStock(
-                1,
-                110,
-                DateTime.Parse("2027-08-05"),
-                DateTime.Parse("2026-08-30")))
-                Console.WriteLine("Stock adicionado");
-            else
-                Console.WriteLine("Erro ao adicionar!");
-
-            if (inventoryService.RemoveStock(
-                1,
-                120))
-                Console.WriteLine("Stock removido");
-            else
-                Console.WriteLine("Erro ao remover!");
-            */
-            try
-            {
-                inventoryService.AddStock(
-                1,
-                110,
-                DateTime.Parse("2026-09-25"),
-                null);
-                Console.WriteLine("Stock adicionado");
-            }
-            catch (DomainException ex)
-            {
-                Console.WriteLine($"{ex.Message}");
             }
 
-
-            /*
-            Console.WriteLine();
-            foreach (var i in productService.GetProducts())
-            {
-                Console.WriteLine(i.ToString());
-            }
-            
-            Console.WriteLine(inventoryService.GetProductAllStockInfo(1));
-            Console.WriteLine();
-
-            */
+            Console.WriteLine("\nResultado esperado:");
+            Console.WriteLine("Estoque disponível antes do descarte: 200");
+            Console.WriteLine("Lotes vencidos encontrados: 2");
+            Console.WriteLine("Batch vencido 1: 0");
+            Console.WriteLine("Batch vencido 2: 0");
+            Console.WriteLine("Batch válido: 200");
+            Console.WriteLine("Estoque disponível após descarte: 200");
+            Console.WriteLine("2 movimentos Disposal");
         }
     }
 }

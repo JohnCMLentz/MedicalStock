@@ -453,7 +453,7 @@ namespace MedicalStock.Tests
                 batchService.DeactivateBatch(batch.Id);
 
                 Assert.NotNull(batchService.GetBatchById(batch.Id));
-                Assert.False(batchService.GetBatchById(batch.Id).IsActive);
+                Assert.False(batchService.GetBatchById(batch.Id)!.IsActive);
             }
         }
 

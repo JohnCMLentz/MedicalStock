@@ -72,16 +72,18 @@ namespace MedicalStock.Services
             Batch? batch = _batchService.GetBatchById(batchId);
 
             if (batch == null)
-                return -1;
+                throw new BatchNotFoundException(batchId);
 
             return (batch.ExpirationDate - DateTime.Today).Days;
         }
 
         public bool HasAvaliableStock(int productId, int quantity)
         {
-            if (quantity <= 0) return false;
+            if (quantity <= 0) 
+                throw new InvalidQuantityException();
             
-            if (!_context.Products.Any(p => p.Id == productId)) return false;
+            if (!_context.Products.Any(p => p.Id == productId)) 
+                throw new ProductNotFoundException(productId);
 
             List<Batch> batches = _batchService.GetBatchesByFEFO(productId);
 
@@ -93,21 +95,12 @@ namespace MedicalStock.Services
             return true;
         }
 
-        public bool HasStock(int productId)
-        {
-            var product = _productService.GetProductById(productId);
-            if (product == null)
-                return false;
-
-            return GetNumberOfProducts(productId) <= 0 ? false : true;
-        }
-
         public bool IsLowStock(int productId)
         {
             var product = _productService.GetProductById(productId);
 
             if(product == null)
-                return false;
+                throw new ProductNotFoundException(productId);
 
             if (product.MinimumStock <= 0)
                 return false;
@@ -136,7 +129,7 @@ namespace MedicalStock.Services
         public Batch AddStock(int productId, int quantity, DateTime expirationDate, DateTime? receivedAt)
         {
             if (!receivedAt.HasValue)
-                receivedAt = DateTime.Now;
+                receivedAt = DateTime.Today;
                         
             Batch batch = _batchService.CreateBatch(productId,quantity,expirationDate,receivedAt.Value);
 
@@ -215,7 +208,8 @@ namespace MedicalStock.Services
                     type,
                     DateTime.Now
                 );
-
+                if(batch.Quantity <= 0)
+                    batch.IsActive = false;
                 _context.StockMovements.Add(stockMovement);
             }
 
@@ -254,7 +248,7 @@ namespace MedicalStock.Services
             foreach (var sm in GetMovementsByBatch(batchId))
             {
                 text += $"\n{@" \- "}{sm}";
-                if (sm.Type == MovementType.Outflow)
+                if (sm.Type == MovementType.Outflow || sm.Type == MovementType.Disposal)
                     currentQuantity -= sm.Quantity;
                 else if (sm.Type == MovementType.Entry)
                     currentQuantity += sm.Quantity;
@@ -282,7 +276,7 @@ namespace MedicalStock.Services
                 foreach (var sm in GetMovementsByBatch(batch.Id))
                 {
                     text += $"\n{@"   \- "}{sm}";
-                    if (sm.Type == MovementType.Outflow)
+                    if (sm.Type == MovementType.Outflow || sm.Type == MovementType.Disposal)
                         currentQuantity -= sm.Quantity;
                     else if (sm.Type == MovementType.Entry)
                         currentQuantity += sm.Quantity;

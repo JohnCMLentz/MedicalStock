@@ -39,7 +39,6 @@ namespace MedicalStock.Services
             return _context.Batches
                 .Where(b => b.IsActive)
                 .Where(b => b.ProductId == productId && b.Quantity > 0)
-                .Where(b => b.ExpirationDate.Date >= DateTime.Today)
                 .OrderBy(b => b.ExpirationDate)
                 .ToList();
         }
