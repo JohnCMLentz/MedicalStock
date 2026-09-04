@@ -133,7 +133,7 @@ namespace MedicalStock.Services
             return products;
         }
 
-        public void AddStock(int productId, int quantity, DateTime expirationDate, DateTime? receivedAt)
+        public Batch AddStock(int productId, int quantity, DateTime expirationDate, DateTime? receivedAt)
         {
             if (!receivedAt.HasValue)
                 receivedAt = DateTime.Now;
@@ -144,6 +144,8 @@ namespace MedicalStock.Services
             
             _context.StockMovements.Add(stockMovement);
             _context.SaveChanges();
+
+            return batch;
         }
 
         public void OutflowStock(int productId, int quantity)

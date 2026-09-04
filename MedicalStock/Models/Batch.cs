@@ -10,6 +10,8 @@
         public DateTime ReceivedAt { get; set; }
         public ICollection<StockMovement>? StockMovements { get; } = new List<StockMovement>();
 
+        public bool IsActive { get; set; } = true;
+
         public Batch() { }
 
         public Batch(int productId, int quantity, DateTime expirationDate, DateTime? receivedAt)
@@ -26,7 +28,7 @@
         public override string ToString()
         {
             return $"Batch ID: {Id}, Product ID: {ProductId}, Quantity: {Quantity}, " +
-                $"Expiration Date: {ExpirationDate.ToString("yyyy/MM/dd")}, Received At: {ReceivedAt.ToString("yyyy/MM/dd")}";
+                $"Expiration Date: {ExpirationDate.ToString("yyyy/MM/dd")}, Received At: {ReceivedAt.ToString("yyyy/MM/dd")}, Is Active: {IsActive}";
         }
     }
 }

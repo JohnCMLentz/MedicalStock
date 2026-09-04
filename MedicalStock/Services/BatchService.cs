@@ -18,23 +18,30 @@ namespace MedicalStock.Services
             return _context.Batches.ToList();
         }
 
+        public Batch? GetBatchById(int id)
+        {
+            return _context.Batches.FirstOrDefault(b => b.Id == id);
+        }
+
         public List<Batch> GetBatchesByProduct(int productId)
         {
+            if (_context.Products.FirstOrDefault(p => p.Id == productId) == null)
+                throw new ProductNotFoundException(productId);
+
             return _context.Batches.Where(b => b.ProductId == productId).ToList();
         }
 
         public List<Batch> GetBatchesByFEFO(int productId)
         {
+            if (_context.Products.FirstOrDefault(p => p.Id == productId) == null)
+                throw new ProductNotFoundException(productId);
+
             return _context.Batches
+                .Where(b => b.IsActive)
                 .Where(b => b.ProductId == productId && b.Quantity > 0)
                 .Where(b => b.ExpirationDate.Date >= DateTime.Today)
                 .OrderBy(b => b.ExpirationDate)
                 .ToList();
-        }
-
-        public Batch? GetBatchById(int id)
-        {
-            return _context.Batches.FirstOrDefault(b => b.Id == id);
         }
 
         public Batch CreateBatch(int productId, int quantity, DateTime expirationDate, DateTime receivedAt)
@@ -77,7 +84,6 @@ namespace MedicalStock.Services
                 batch.ProductId = productId.Value;
             }
 
-
             if (expirationDate.HasValue || receivedAt.HasValue)
             {
                 var expiration = expirationDate.HasValue ? expirationDate.Value : batch.ExpirationDate;
@@ -104,17 +110,17 @@ namespace MedicalStock.Services
             _context.SaveChanges();
         }
 
-        public void DeleteBatch(int id)
+        public void DeactivateBatch(int id)
         {
             var batch = _context.Batches.FirstOrDefault(b => b.Id == id);
 
             if (batch == null)
                 throw new BatchNotFoundException(id);
 
-            if (_context.StockMovements.Any(sm => sm.BatchId == id))
-                throw new BatchHasMovementsException(id);
+            if (batch.Quantity > 0)
+                throw new DeactivateBatchWithProductsException(id);
 
-            _context.Batches.Remove(batch);
+            batch.IsActive = false;
             _context.SaveChanges();
         }
 
